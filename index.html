@@ -296,14 +296,23 @@ body {
         <div class="api-row">
           <div class="control-group">
             <label>模型名称</label>
-            <input type="text" id="imgModel" value="image1" placeholder="image1 / image2" style="width:180px">
+            <input type="text" id="imgModel" value="gpt-image-2" placeholder="gpt-image-1 / gpt-image-2" style="width:180px">
+          </div>
+          <div class="control-group">
+            <label>画质</label>
+            <select id="imgQuality">
+              <option value="high">high (高清)</option>
+              <option value="standard">standard (标准)</option>
+            </select>
           </div>
           <div class="control-group">
             <label>尺寸</label>
             <select id="imgSize">
               <option value="1024x1024">1024×1024 (方形)</option>
-              <option value="1792x1024">1792×1024 (横版)</option>
-              <option value="1024x1792">1024×1792 (竖版)</option>
+              <option value="1536x1024">1536×1024 (横版 3:2)</option>
+              <option value="1792x1024">1792×1024 (横版 16:9)</option>
+              <option value="1024x1536">1024×1536 (竖版 2:3)</option>
+              <option value="1024x1792">1024×1792 (竖版 9:16)</option>
             </select>
           </div>
         </div>
@@ -969,7 +978,8 @@ function imgLog(msg, cls = 'info') {
 btnGenImg.addEventListener('click', async () => {
   const baseUrl = imgApiBase.value.trim().replace(/\/+$/, '');
   const apiKey = imgApiKey.value.trim();
-  const model = imgModel.value;
+  const model = imgModel.value.trim();
+  const quality = $('#imgQuality').value;
   const size = imgSize.value;
   const prompt = imgPrompt.value.trim();
 
@@ -997,6 +1007,7 @@ btnGenImg.addEventListener('click', async () => {
         prompt,
         n: 1,
         size,
+        quality,
         response_format: 'b64_json'
       })
     });
