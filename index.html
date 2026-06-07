@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>帧动画拆帧工具 - Frame Splitter</title>
+<style>
+:root {
+  --bg: #1a1a2e;
+  --panel: #16213e;
+  --border: #0f3460;
+  --accent: #e94560;
+  --accent2: #0f3460;
+  --text: #eee;
+  --text2: #a0a0b8;
+  --success: #2ecc71;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+}
+.app {
+  width: 100%;
+  max-width: 900px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+/* header */
+.header {
+  text-align: center;
+  padding: 20px 0 8px;
+}
+.header h1 { font-size: 26px; font-weight: 700; }
+.header .sub { color: var(--text2); font-size: 13px; margin-top: 4px; }
+/* panel card */
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-title .icon { font-size: 18px; }
+/* drop zone */
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .2s;
+  position: relative;
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--accent);
+  background: rgba(233,69,96,0.05);
+}
+.drop-zone .dz-icon { font-size: 48px; margin-bottom: 10px; }
+.drop-zone .dz-text { font-size: 15px; color: var(--text2); }
+.drop-zone .dz-hint { font-size: 12px; color: #666; margin-top: 6px; }
+.drop-zone input { display: none; }
+/* preview thumb */
+.preview-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+}
+.preview-row video, .preview-row img {
+  max-width: 120px; max-height: 80px; border-radius: 6px;
+}
+.preview-info { flex: 1; font-size: 13px; color: var(--text2); }
+.preview-info .name { color: var(--text); font-weight: 600; }
+.preview-info .meta { font-size: 12px; margin-top: 2px; }
+.btn-remove { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 18px; }
+/* controls */
+.control-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+.control-group { display: flex; flex-direction: column; gap: 4px; }
+.control-group label { font-size: 12px; color: var(--text2); font-weight: 600; }
+.control-group input, .control-group select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  width: 100px;
+  outline: none;
+}
+.control-group input:focus, .control-group select:focus { border-color: var(--accent); }
+/* buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all .15s;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #ff5a7a; }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.btn-outline:hover { border-color: var(--accent); }
+.btn-sm { padding: 6px 14px; font-size: 12px; }
+.btn-success { background: var(--success); color: #fff; }
+.button-row { display: flex; gap: 10px; flex-wrap: wrap; }
+/* progress */
+.progress-wrap { margin-top: 12px; }
+.progress-bar {
+  height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; background: var(--accent); width: 0%;
+  transition: width .3s;
+}
+.progress-text { font-size: 12px; color: var(--text2); margin-top: 6px; }
+/* frame strip */
+.frame-strip {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 10px 0;
+  margin-top: 10px;
+}
+.frame-strip img {
+  height: 60px;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+.frame-strip img.selected { border-color: var(--accent); }
+/* log */
+.log-area {
+  margin-top: 12px;
+  max-height: 120px;
+  overflow-y: auto;
+  font-size: 12px;
+  font-family: "Cascadia Code", Consolas, monospace;
+  color: var(--text2);
+  background: rgba(0,0,0,0.2);
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+.log-area .log-line { padding: 1px 0; }
+.log-area .log-line.info { color: #7ec8e3; }
+.log-area .log-line.success { color: var(--success); }
+.log-area .log-line.error { color: var(--accent); }
+/* tabs */
+.tabs { display: flex; gap: 0; margin-bottom: 16px; }
+.tab {
+  padding: 8px 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 13px;
+}
+.tab:first-child { border-radius: 8px 0 0 8px; }
+.tab:last-child { border-radius: 0 8px 8px 0; }
+.tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+/* api config */
+.api-config { display: none; }
+.api-config.show { display: block; }
+.api-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 10px;
+}
+.api-row .control-group input { width: 220px; }
+/* sprite config */
+.sprite-config { display: none; margin-top: 12px; }
+.sprite-config.show { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+/* hidden */
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>🎬 帧动画拆帧工具</h1>
+    <div class="sub">视频 → 序列帧 · GIF · Sprite Sheet | 纯浏览器本地处理</div>
+  </div>
+
+  <!-- 上传区域 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">📤</span> 上传文件</div>
+    <div class="drop-zone" id="dropZone">
+      <div class="dz-icon">🎥</div>
+      <div class="dz-text">拖拽视频/GIF/图片到此处，或点击选择</div>
+      <div class="dz-hint">支持 MP4 / WebM / GIF / PNG / JPG / WebP</div>
+      <input type="file" id="fileInput" accept="video/*,image/gif,image/png,image/jpeg,image/webp">
+    </div>
+    <div id="previewRow" class="preview-row hidden">
+      <video id="previewVideo" controls crossorigin="anonymous"></video>
+      <img id="previewImg" style="display:none">
+      <div class="preview-info">
+        <div class="name" id="fileName"></div>
+        <div class="meta" id="fileMeta"></div>
+      </div>
+      <button class="btn-remove" id="btnRemove" title="移除">✕</button>
+    </div>
+  </div>
+
+  <!-- 工作模式 -->
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" data-tab="video">📹 视频拆帧</button>
+      <button class="tab" data-tab="genimg">🎨 AI 生图</button>
+      <button class="tab" data-tab="img2video">✨ 图片转视频</button>
+    </div>
+
+    <!-- 视频拆帧模式 -->
+    <div id="tabVideo">
+      <div class="card-title"><span class="icon">⚙️</span> 拆帧参数</div>
+      <div class="control-row">
+        <div class="control-group">
+          <label>目标帧数 <span style="color:var(--accent);font-size:11px">(推荐)</span></label>
+          <input type="number" id="targetFrames" value="0" min="0" max="200" placeholder="0=按帧率">
+        </div>
+        <div class="control-group">
+          <label>帧率 (fps)</label>
+          <input type="number" id="fps" value="8" min="1" max="60">
+        </div>
+        <div class="control-group">
+          <label>智能去重</label>
+          <select id="dedupMode">
+            <option value="off">关闭 - 全部保留</option>
+            <option value="on" selected>开启 - 跳过相似帧</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label>起始时间 (秒)</label>
+          <input type="number" id="startTime" value="0" min="0" step="0.1">
+        </div>
+        <div class="control-group">
+          <label>结束时间 (秒)</label>
+          <input type="number" id="endTime" value="0" min="0" step="0.1" placeholder="0=全部">
+        </div>
+        <div class="control-group">
+          <label>缩放宽度 (px)</label>
+          <input type="number" id="resizeW" value="0" min="0" placeholder="0=原始">
+        </div>
+        <div class="control-group">
+          <label>缩放高度 (px)</label>
+          <input type="number" id="resizeH" value="0" min="0" placeholder="0=原始">
+        </div>
+      </div>
+    </div>
+
+    <!-- AI 生图模式 -->
+    <div id="tabGenimg" class="hidden">
+      <div class="card-title"><span class="icon">🎨</span> AI 图片生成</div>
+      <div class="api-config show">
+        <div class="api-row">
+          <div class="control-group">
+            <label>中转站地址 (API Base URL)</label>
+            <input type="text" id="imgApiBase" placeholder="https://your-proxy.com/v1" style="width:320px">
+          </div>
+          <div class="control-group">
+            <label>API Key</label>
+            <input type="password" id="imgApiKey" placeholder="sk-..." style="width:260px">
+          </div>
+        </div>
+        <div class="api-row">
+          <div class="control-group">
+            <label>模型</label>
+            <select id="imgModel">
+              <option value="dall-e-3">GPT Image-1 / DALL-E 3</option>
+              <option value="dall-e-2">GPT Image-2 / DALL-E 2</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label>尺寸</label>
+            <select id="imgSize">
+              <option value="1024x1024">1024×1024 (方形)</option>
+              <option value="1792x1024">1792×1024 (横版)</option>
+              <option value="1024x1792">1024×1792 (竖版)</option>
+            </select>
+          </div>
+        </div>
+        <div class="api-row">
+          <div class="control-group">
+            <label>提示词</label>
+            <input type="text" id="imgPrompt" placeholder="描述你要生成的图片..." style="width:400px">
+          </div>
+          <button class="btn btn-primary btn-sm" id="btnGenImg">🖼 生成图片</button>
+        </div>
+      </div>
+      <div class="log-area hidden" id="imgGenLog"></div>
+      <div class="gen-img-preview hidden" id="genImgPreview">
+        <img id="genImgResult" style="max-width:100%;border-radius:8px;margin-top:12px">
+        <div class="button-row" style="margin-top:8px">
+          <button class="btn btn-outline btn-sm" id="btnUseGenImg">📤 加载到工具</button>
+          <button class="btn btn-outline btn-sm" id="btnDownloadGenImg">⬇ 下载图片</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 图片转视频模式 -->
+    <div id="tabImg2video" class="hidden">
+      <div class="card-title"><span class="icon">🤖</span> 图生视频 API</div>
+      <div class="api-config show" id="apiConfig">
+        <div class="api-row">
+          <div class="control-group">
+            <label>API 提供商</label>
+            <select id="apiProvider">
+              <option value="tongyi">通义万相 (阿里云)</option>
+              <option value="cogvideo">智谱 CogVideoX</option>
+              <option value="custom">自定义接口</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label>API Key</label>
+            <input type="password" id="apiKey" placeholder="输入你的 API Key">
+          </div>
+        </div>
+        <div class="api-row">
+          <div class="control-group">
+            <label>动作提示词</label>
+            <input type="text" id="motionPrompt" placeholder="例如：角色挥手走路，循环动画" style="width:320px">
+          </div>
+          <button class="btn btn-primary btn-sm" id="btnGenVideo">🎥 生成视频</button>
+        </div>
+      </div>
+      <div class="log-area hidden" id="apiLog"></div>
+    </div>
+  </div>
+
+  <!-- 输出格式 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">📦</span> 输出格式</div>
+    <div class="control-row">
+      <div class="control-group">
+        <label>导出格式</label>
+        <select id="outputFormat">
+          <option value="png_zip">PNG 序列 (ZIP 打包)</option>
+          <option value="gif">GIF 动图</option>
+          <option value="sprite">Sprite Sheet (精灵表)</option>
+        </select>
+      </div>
+      <div class="sprite-config" id="spriteConfig">
+        <div class="control-group">
+          <label>列数</label>
+          <input type="number" id="spriteCols" value="4" min="1" max="20" style="width:70px">
+        </div>
+        <div class="control-group">
+          <label>行数 (0=自动)</label>
+          <input type="number" id="spriteRows" value="0" min="0" max="100" style="width:70px">
+        </div>
+      </div>
+    </div>
+    <div class="button-row" style="margin-top:14px">
+      <button class="btn btn-primary" id="btnSplit" disabled>🔪 开始拆帧</button>
+      <button class="btn btn-outline btn-sm" id="btnPreview">👁 预览动画</button>
+    </div>
+    <div class="progress-wrap hidden" id="progressWrap">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-text" id="progressText"></div>
+    </div>
+  </div>
+
+  <!-- 帧预览 -->
+  <div class="card hidden" id="framePreviewCard">
+    <div class="card-title"><span class="icon">🖼</span> 帧预览 <span id="frameCount" style="font-weight:400;color:var(--text2)"></span></div>
+    <div class="frame-strip" id="frameStrip"></div>
+    <div class="button-row" style="margin-top:10px">
+      <button class="btn btn-success" id="btnDownload">⬇ 下载导出</button>
+    </div>
+  </div>
+
+  <!-- 日志 -->
+  <div class="card">
+    <div class="log-area" id="logArea">
+      <div class="log-line info">🟢 工具就绪，请上传视频文件开始。</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+<script>
+// ======================== STATE ========================
+const state = {
+  file: null,
+  fileType: null,   // 'video' | 'gif' | 'image'
+  videoEl: null,
+  objectUrl: null,
+  frames: [],       // [{blob, dataUrl}]
+  isProcessing: false
+};
+
+// ======================== DOM REFS ========================
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => document.querySelectorAll(s);
+
+const dropZone = $('#dropZone');
+const fileInput = $('#fileInput');
+const previewRow = $('#previewRow');
+const previewVideo = $('#previewVideo');
+const previewImg = $('#previewImg');
+const fileName = $('#fileName');
+const fileMeta = $('#fileMeta');
+const btnRemove = $('#btnRemove');
+const btnSplit = $('#btnSplit');
+const btnPreview = $('#btnPreview');
+const btnDownload = $('#btnDownload');
+const btnGenVideo = $('#btnGenVideo');
+const progressWrap = $('#progressWrap');
+const progressFill = $('#progressFill');
+const progressText = $('#progressText');
+const framePreviewCard = $('#framePreviewCard');
+const frameStrip = $('#frameStrip');
+const frameCount = $('#frameCount');
+const logArea = $('#logArea');
+const spriteConfig = $('#spriteConfig');
+const outputFormat = $('#outputFormat');
+const tabVideo = $('#tabVideo');
+const tabImg2video = $('#tabImg2video');
+const tabGenimg = $('#tabGenimg');
+const apiLog = $('#apiLog');
+// image gen refs
+const imgApiBase = $('#imgApiBase');
+const imgApiKey = $('#imgApiKey');
+const imgModel = $('#imgModel');
+const imgSize = $('#imgSize');
+const imgPrompt = $('#imgPrompt');
+const btnGenImg = $('#btnGenImg');
+const imgGenLog = $('#imgGenLog');
+const genImgPreview = $('#genImgPreview');
+const genImgResult = $('#genImgResult');
+const btnUseGenImg = $('#btnUseGenImg');
+const btnDownloadGenImg = $('#btnDownloadGenImg');
+let genImgDataUrl = null;
+
+// ======================== LOG ========================
+function log(msg, cls = 'info') {
+  const div = document.createElement('div');
+  div.className = `log-line ${cls}`;
+  div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  logArea.appendChild(div);
+  logArea.scrollTop = logArea.scrollHeight;
+}
+
+// ======================== TAB SWITCHING ========================
+$$('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    $$('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const target = tab.dataset.tab;
+    tabVideo.classList.toggle('hidden', target !== 'video');
+    tabGenimg.classList.toggle('hidden', target !== 'genimg');
+    tabImg2video.classList.toggle('hidden', target !== 'img2video');
+    apiLog.classList.toggle('hidden', target !== 'img2video');
+    imgGenLog.classList.toggle('hidden', target !== 'genimg');
+  });
+});
+
+// ======================== OUTPUT FORMAT ========================
+outputFormat.addEventListener('change', () => {
+  spriteConfig.classList.toggle('show', outputFormat.value === 'sprite');
+});
+
+// ======================== FILE HANDLING ========================
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+fileInput.addEventListener('change', () => {
+  const file = fileInput.files[0];
+  if (file) handleFile(file);
+});
+
+function handleFile(file) {
+  // cleanup old
+  if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
+  state.frames = [];
+  frameStrip.innerHTML = '';
+  framePreviewCard.classList.add('hidden');
+  btnDownload.classList.add('hidden');
+  progressWrap.classList.add('hidden');
+  btnSplit.disabled = true;
+
+  state.file = file;
+
+  if (file.type.startsWith('video/') || file.type === 'image/gif') {
+    state.fileType = file.type === 'image/gif' ? 'gif' : 'video';
+    state.objectUrl = URL.createObjectURL(file);
+    previewVideo.src = state.objectUrl;
+    previewVideo.style.display = 'block';
+    previewImg.style.display = 'none';
+    previewRow.classList.remove('hidden');
+    fileName.textContent = file.name;
+    const dur = file.type === 'image/gif' ? 'GIF' : '视频';
+    fileMeta.textContent = `${dur} | ${formatSize(file.size)}`;
+    btnSplit.disabled = false;
+    log(`已加载: ${file.name} (${formatSize(file.size)})`);
+  } else if (file.type.startsWith('image/')) {
+    state.fileType = 'image';
+    state.objectUrl = URL.createObjectURL(file);
+    previewImg.src = state.objectUrl;
+    previewImg.style.display = 'block';
+    previewVideo.style.display = 'none';
+    previewRow.classList.remove('hidden');
+    fileName.textContent = file.name;
+    fileMeta.textContent = `图片 | ${formatSize(file.size)}`;
+    btnSplit.disabled = true;
+    log(`已加载图片: ${file.name}，请切换到「图片转视频」模式生成视频`);
+    // auto switch tab
+    $$('.tab').forEach(t => t.classList.remove('active'));
+    $$('.tab')[1].classList.add('active');
+    tabVideo.classList.add('hidden');
+    tabImg2video.classList.remove('hidden');
+    apiLog.classList.remove('hidden');
+  }
+}
+
+btnRemove.addEventListener('click', () => {
+  if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
+  state.file = null;
+  state.fileType = null;
+  state.objectUrl = null;
+  state.frames = [];
+  previewRow.classList.add('hidden');
+  previewVideo.src = '';
+  previewImg.src = '';
+  frameStrip.innerHTML = '';
+  framePreviewCard.classList.add('hidden');
+  btnDownload.classList.add('hidden');
+  progressWrap.classList.add('hidden');
+  btnSplit.disabled = true;
+  log('文件已移除');
+});
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+// ======================== FRAME COMPARISON (for dedup) ========================
+function framesAreSimilar(dataUrl1, dataUrl2) {
+  if (!dataUrl1 || !dataUrl2) return false;
+  // Quick check: compare middle portion of base64 data
+  const strip = (s) => s.substring(s.indexOf(',') + 1);
+  const b1 = strip(dataUrl1);
+  const b2 = strip(dataUrl2);
+  if (Math.abs(b1.length - b2.length) > 50) return false;
+  // Sample 3 portions for comparison
+  const q1 = Math.floor(b1.length * 0.25);
+  const q2 = Math.floor(b1.length * 0.5);
+  const q3 = Math.floor(b1.length * 0.75);
+  const len = Math.floor(b1.length * 0.1);
+  return (
+    b1.substring(q1, q1 + len) === b2.substring(q1, q1 + len) &&
+    b1.substring(q2, q2 + len) === b2.substring(q2, q2 + len) &&
+    b1.substring(q3, q3 + len) === b2.substring(q3, q3 + len)
+  );
+}
+
+// ======================== FRAME EXTRACTION (Canvas) ========================
+async function extractFrames() {
+  const targetFrames = parseInt($('#targetFrames').value) || 0;
+  const fps = parseInt($('#fps').value) || 8;
+  const dedupMode = $('#dedupMode').value;
+  const startSec = parseFloat($('#startTime').value) || 0;
+  const endSecInput = parseFloat($('#endTime').value) || 0;
+  const resizeW = parseInt($('#resizeW').value) || 0;
+  const resizeH = parseInt($('#resizeH').value) || 0;
+
+  if (!state.file || (state.fileType !== 'video' && state.fileType !== 'gif')) {
+    log('请先上传视频或GIF文件', 'error');
+    return;
+  }
+
+  state.isProcessing = true;
+  state.frames = [];
+  frameStrip.innerHTML = '';
+  progressWrap.classList.remove('hidden');
+  btnSplit.disabled = true;
+
+  const video = document.createElement('video');
+  video.src = state.objectUrl;
+  video.crossOrigin = 'anonymous';
+  video.preload = 'auto';
+  video.muted = true;
+
+  await new Promise((resolve, reject) => {
+    video.onloadedmetadata = resolve;
+    video.onerror = reject;
+  });
+
+  const duration = video.duration;
+  const endSec = endSecInput > 0 && endSecInput <= duration ? endSecInput : duration;
+  const clipDuration = endSec - startSec;
+
+  // targetFrames takes priority over fps
+  let totalFrames, frameInterval;
+  if (targetFrames > 0) {
+    totalFrames = targetFrames;
+    frameInterval = clipDuration / targetFrames;
+    log(`视频时长: ${duration.toFixed(2)}s, 目标帧数: ${targetFrames} 帧 (${startSec}s~${endSec}s, 间隔${(frameInterval*1000).toFixed(0)}ms)`);
+  } else {
+    totalFrames = Math.floor(clipDuration * fps);
+    frameInterval = 1 / fps;
+    log(`视频时长: ${duration.toFixed(2)}s, ${fps}fps 将提取 ${totalFrames} 帧 (${startSec}s~${endSec}s)`);
+  }
+
+  // calc output size
+  let outW = video.videoWidth;
+  let outH = video.videoHeight;
+  if (resizeW > 0 && resizeH > 0) { outW = resizeW; outH = resizeH; }
+  else if (resizeW > 0) { outH = Math.round(video.videoHeight * (resizeW / video.videoWidth)); outW = resizeW; }
+  else if (resizeH > 0) { outW = Math.round(video.videoWidth * (resizeH / video.videoHeight)); outH = resizeH; }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = outW;
+  canvas.height = outH;
+  const ctx = canvas.getContext('2d');
+
+  let lastDataUrl = null;
+  let extracted = 0;
+  let processed = 0;
+  let skipped = 0;
+
+  for (let i = 0; i < totalFrames; i++) {
+    const time = startSec + i * frameInterval;
+    if (time > duration) break;
+
+    // seek
+    video.currentTime = time;
+    await new Promise((resolve) => {
+      video.onseeked = resolve;
+    });
+
+    ctx.drawImage(video, 0, 0, outW, outH);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    const dataUrl = canvas.toDataURL('image/png');
+    processed++;
+
+    // dedup check
+    if (dedupMode === 'on' && lastDataUrl && framesAreSimilar(lastDataUrl, dataUrl)) {
+      skipped++;
+      const pct = Math.round((processed / totalFrames) * 100);
+      progressFill.style.width = pct + '%';
+      progressText.textContent = `扫描中... ${processed}/${totalFrames} (跳过 ${skipped} 帧相似帧)`;
+      continue;
+    }
+    lastDataUrl = dataUrl;
+
+    state.frames.push({ blob, dataUrl, index: extracted });
+    extracted++;
+
+    // show thumb
+    const img = document.createElement('img');
+    img.src = dataUrl;
+    img.title = `帧 ${extracted} (${time.toFixed(2)}s)`;
+    img.addEventListener('click', () => {
+      frameStrip.querySelectorAll('img').forEach(im => im.classList.remove('selected'));
+      img.classList.add('selected');
+    });
+    frameStrip.appendChild(img);
+
+    // progress
+    const pct = Math.round(((i + 1) / totalFrames) * 100);
+    progressFill.style.width = pct + '%';
+    progressText.textContent = `提取中... ${i + 1}/${totalFrames} (${pct}%)`;
+  }
+
+  const dedupMsg = skipped > 0 ? ` (跳过 ${skipped} 帧相似帧)` : '';
+  progressFill.style.width = '100%';
+  progressText.textContent = `✅ 完成! 共 ${state.frames.length} 帧${dedupMsg}`;
+  frameCount.textContent = `(${state.frames.length} 帧)`;
+  framePreviewCard.classList.remove('hidden');
+  btnDownload.classList.remove('hidden');
+  btnSplit.disabled = false;
+  state.isProcessing = false;
+
+  log(`提取完成: ${state.frames.length} 帧${dedupMsg}`, 'success');
+}
+
+// ======================== EXPORT ========================
+async function exportFrames() {
+  if (state.frames.length === 0) {
+    log('没有可导出的帧', 'error');
+    return;
+  }
+
+  const format = outputFormat.value;
+
+  if (format === 'png_zip') {
+    await exportPngZip();
+  } else if (format === 'gif') {
+    await exportGif();
+  } else if (format === 'sprite') {
+    await exportSprite();
+  }
+}
+
+async function exportPngZip() {
+  log('正在打包 ZIP...');
+  const zip = new JSZip();
+  const padLen = String(state.frames.length).length;
+
+  for (let i = 0; i < state.frames.length; i++) {
+    const name = `frame_${String(i + 1).padStart(padLen, '0')}.png`;
+    zip.file(name, state.frames[i].blob);
+  }
+
+  const zipBlob = await zip.generateAsync({ type: 'blob' });
+  downloadBlob(zipBlob, 'frames.zip');
+  log(`ZIP 导出完成: ${state.frames.length} 个PNG`, 'success');
+}
+
+function exportGif() {
+  const fps = parseInt($('#fps').value) || 8;
+  const delay = Math.round(1000 / fps); // ms per frame
+
+  log('正在生成 GIF (使用 gif.js，可能需要一点时间)...');
+
+  // gif.js worker
+  const gif = new GIF({
+    workers: 2,
+    quality: 10,
+    width: state.frames[0] ? null : 400,
+    height: state.frames[0] ? null : 400,
+    workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
+  });
+
+  gif.on('finished', (blob) => {
+    downloadBlob(blob, 'animation.gif');
+    log('GIF 导出完成', 'success');
+  });
+
+  gif.on('progress', (p) => {
+    progressWrap.classList.remove('hidden');
+    progressFill.style.width = Math.round(p * 100) + '%';
+    progressText.textContent = `GIF 编码中... ${Math.round(p * 100)}%`;
+  });
+
+  // load frames as Image elements
+  let loaded = 0;
+  for (const frame of state.frames) {
+    const img = new Image();
+    img.onload = () => {
+      gif.addFrame(img, { delay, copy: true });
+      loaded++;
+      if (loaded === state.frames.length) {
+        gif.render();
+      }
+    };
+    img.src = frame.dataUrl;
+  }
+}
+
+async function exportSprite() {
+  const cols = parseInt($('#spriteCols').value) || 4;
+  const rowsInput = parseInt($('#spriteRows').value) || 0;
+  const rows = rowsInput > 0 ? rowsInput : Math.ceil(state.frames.length / cols);
+
+  // get frame dimensions from first frame
+  const firstImg = new Image();
+  firstImg.src = state.frames[0].dataUrl;
+  await new Promise(r => firstImg.onload = r);
+
+  const fw = firstImg.width;
+  const fh = firstImg.height;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = fw * cols;
+  canvas.height = fh * rows;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = 'transparent';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const totalCells = cols * rows;
+  const frameCount = Math.min(state.frames.length, totalCells);
+
+  for (let i = 0; i < frameCount; i++) {
+    const img = new Image();
+    img.src = state.frames[i].dataUrl;
+    await new Promise(r => img.onload = r);
+
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    ctx.drawImage(img, col * fw, row * fh);
+  }
+
+  const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+  downloadBlob(blob, 'spritesheet.png');
+  log(`Sprite Sheet 导出完成: ${cols}x${rows}, ${frameCount} 帧`, 'success');
+  progressWrap.classList.add('hidden');
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ======================== PREVIEW ========================
+function previewAnimation() {
+  if (state.frames.length === 0) {
+    log('请先提取帧', 'error');
+    return;
+  }
+
+  const fps = parseInt($('#fps').value) || 8;
+  const delay = 1000 / fps;
+
+  // create a simple preview canvas overlay
+  let overlay = $('#animPreview');
+  if (overlay) overlay.remove();
+
+  const firstImg = new Image();
+  firstImg.onload = () => {
+    overlay = document.createElement('div');
+    overlay.id = 'animPreview';
+    overlay.style.cssText = `
+      position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+      background:#000;border:2px solid var(--accent);border-radius:12px;
+      padding:20px;z-index:9999;text-align:center;
+    `;
+    const cvs = document.createElement('canvas');
+    cvs.width = firstImg.width;
+    cvs.height = firstImg.height;
+    overlay.appendChild(cvs);
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕ 关闭';
+    closeBtn.style.cssText = 'margin-top:10px;padding:6px 20px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer';
+    closeBtn.onclick = () => overlay.remove();
+    overlay.appendChild(closeBtn);
+    document.body.appendChild(overlay);
+
+    const ctx = cvs.getContext('2d');
+    let idx = 0;
+    const play = () => {
+      const img = new Image();
+      img.onload = () => {
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
+        ctx.drawImage(img, 0, 0);
+        idx = (idx + 1) % state.frames.length;
+      };
+      img.src = state.frames[idx].dataUrl;
+    };
+    play();
+    const timer = setInterval(play, delay);
+    closeBtn.addEventListener('click', () => clearInterval(timer), { once: true });
+  };
+  firstImg.src = state.frames[0].dataUrl;
+}
+
+// ======================== IMG2VIDEO API ========================
+btnGenVideo.addEventListener('click', async () => {
+  const provider = $('#apiProvider').value;
+  const apiKey = $('#apiKey').value.trim();
+  const prompt = $('#motionPrompt').value.trim();
+
+  if (!apiKey) { log('请先输入 API Key', 'error'); return; }
+  if (state.fileType !== 'image') { log('请先上传一张静态图片', 'error'); return; }
+  if (!prompt) { log('请输入动作提示词', 'error'); return; }
+
+  apiLog.classList.remove('hidden');
+  log('正在调用图生视频 API...', 'info');
+
+  try {
+    let videoUrl = null;
+
+    if (provider === 'tongyi') {
+      videoUrl = await callTongyiWanxiang(apiKey, state.objectUrl, prompt);
+    } else if (provider === 'cogvideo') {
+      videoUrl = await callCogVideoX(apiKey, state.objectUrl, prompt);
+    } else {
+      log('自定义接口请自行对接，格式: POST {image, prompt} → {video_url}', 'error');
+      return;
+    }
+
+    if (videoUrl) {
+      log('视频生成成功！正在加载...', 'success');
+      // fetch the video as a blob, then treat it as uploaded
+      const resp = await fetch(videoUrl);
+      const blob = await resp.blob();
+      const file = new File([blob], 'generated.mp4', { type: 'video/mp4' });
+      handleFile(file);
+      // switch back to video tab
+      $$('.tab').forEach(t => t.classList.remove('active'));
+      $$('.tab')[0].classList.add('active');
+      tabVideo.classList.remove('hidden');
+      tabImg2video.classList.add('hidden');
+      apiLog.classList.add('hidden');
+    }
+  } catch (err) {
+    log(`API 调用失败: ${err.message}`, 'error');
+  }
+});
+
+async function callTongyiWanxiang(apiKey, imageUrl, prompt) {
+  // 通义万相 图生视频 API
+  // 1. 上传图片获取URL
+  // 如果 imageUrl 是 blob URL，需要先上传到可访问的URL
+  // 简化处理: 直接用 base64 或要求用户提供可访问URL
+
+  // 实际上通义万相需要图片URL，本地blob不行
+  // 这里提供一个示例实现，实际使用时需要先上传图片到OSS或直接用base64
+  log('通义万相 API: 图片需先上传到可公网访问的URL', 'error');
+  log('提示: 可先上传图片到图床(如 imgur.com)，将URL粘贴到这里', 'info');
+  throw new Error('通义万相需要公网可访问的图片URL，当前版本暂不支持本地图片直传。请先将图片上传到图床。');
+}
+
+async function callCogVideoX(apiKey, imageUrl, prompt) {
+  // 智谱 CogVideoX 图生视频 API
+  // 类似需要公网URL
+  log('智谱 CogVideoX: 需要公网可访问的图片URL', 'error');
+  throw new Error('需要公网可访问的图片URL');
+}
+
+// ======================== IMAGE GENERATION ========================
+function imgLog(msg, cls = 'info') {
+  imgGenLog.classList.remove('hidden');
+  const div = document.createElement('div');
+  div.className = `log-line ${cls}`;
+  div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  imgGenLog.appendChild(div);
+  imgGenLog.scrollTop = imgGenLog.scrollHeight;
+}
+
+btnGenImg.addEventListener('click', async () => {
+  const baseUrl = imgApiBase.value.trim().replace(/\/+$/, '');
+  const apiKey = imgApiKey.value.trim();
+  const model = imgModel.value;
+  const size = imgSize.value;
+  const prompt = imgPrompt.value.trim();
+
+  if (!baseUrl) { imgLog('请输入中转站地址', 'error'); return; }
+  if (!apiKey) { imgLog('请输入 API Key', 'error'); return; }
+  if (!prompt) { imgLog('请输入提示词', 'error'); return; }
+
+  imgLog(`正在调用 ${model} 生成图片...`, 'info');
+  btnGenImg.disabled = true;
+  btnGenImg.textContent = '⏳ 生成中...';
+
+  try {
+    const resp = await fetch(`${baseUrl}/images/generations`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model,
+        prompt,
+        n: 1,
+        size,
+        response_format: 'b64_json'
+      })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.text();
+      throw new Error(`API 返回 ${resp.status}: ${err}`);
+    }
+
+    const data = await resp.json();
+    const b64 = data.data?.[0]?.b64_json;
+    if (!b64) {
+      const imgUrl = data.data?.[0]?.url;
+      if (imgUrl) {
+        imgLog('获取到图片URL，正在下载...', 'info');
+        const imgResp = await fetch(imgUrl);
+        const blob = await imgResp.blob();
+        genImgDataUrl = await new Promise(r => {
+          const reader = new FileReader();
+          reader.onload = () => r(reader.result);
+          reader.readAsDataURL(blob);
+        });
+      } else {
+        throw new Error('API 返回数据中没有图片');
+      }
+    } else {
+      genImgDataUrl = `data:image/png;base64,${b64}`;
+    }
+
+    genImgResult.src = genImgDataUrl;
+    genImgPreview.classList.remove('hidden');
+    imgLog('✅ 图片生成成功！', 'success');
+  } catch (err) {
+    imgLog(`❌ 生成失败: ${err.message}`, 'error');
+  } finally {
+    btnGenImg.disabled = false;
+    btnGenImg.textContent = '🖼 生成图片';
+  }
+});
+
+btnUseGenImg.addEventListener('click', async () => {
+  if (!genImgDataUrl) return;
+  const resp = await fetch(genImgDataUrl);
+  const blob = await resp.blob();
+  const file = new File([blob], 'generated.png', { type: 'image/png' });
+  handleFile(file);
+  log('已加载生成的图片到工具', 'success');
+  // switch to img2video tab
+  $$('.tab').forEach(t => t.classList.remove('active'));
+  const imgTab = [...$$('.tab')].find(t => t.dataset.tab === 'img2video');
+  if (imgTab) imgTab.classList.add('active');
+  tabVideo.classList.add('hidden');
+  tabGenimg.classList.add('hidden');
+  tabImg2video.classList.remove('hidden');
+  apiLog.classList.remove('hidden');
+  imgGenLog.classList.add('hidden');
+});
+
+btnDownloadGenImg.addEventListener('click', () => {
+  if (!genImgDataUrl) return;
+  const a = document.createElement('a');
+  a.href = genImgDataUrl;
+  a.download = 'generated.png';
+  a.click();
+});
+
+// ======================== BUTTON EVENTS ========================
+btnSplit.addEventListener('click', extractFrames);
+btnDownload.addEventListener('click', exportFrames);
+btnPreview.addEventListener('click', previewAnimation);
+
+// ======================== INIT ========================
+log('🟢 工具就绪，请上传视频文件或GIF开始拆帧。');
+log('💡 切换到「AI 生图」用 AI 生成图片，「图片转视频」将图转视频再拆帧。');
+</script>
+</body>
+</html>
