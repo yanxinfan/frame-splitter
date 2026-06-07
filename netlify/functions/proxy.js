@@ -11,25 +11,37 @@ exports.handler = async function(event) {
     };
   }
 
-  // Only accept POST to /api/proxy
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method not allowed' };
   }
 
   try {
-    const { url, method, headers, body } = JSON.parse(event.body);
-    
+    // Parse the proxy request from the frontend
+    const proxyReq = JSON.parse(event.body);
+    const { url, headers: reqHeaders, body: reqBody } = proxyReq;
+
+    console.log('Proxying to:', url);
+
+    // Forward to the actual API
     const resp = await fetch(url, {
-      method: method || 'POST',
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': headers?.Authorization || ''
+        'Authorization': reqHeaders.Authorization || ''
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(reqBody)
     });
 
-    const data = await resp.json();
-    
+    // Read response as text first, then try JSON
+    const text = await resp.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      // Response is not JSON (e.g. plain text error)
+      data = { raw: text };
+    }
+
     return {
       statusCode: resp.status,
       headers: {
@@ -42,7 +54,7 @@ exports.handler = async function(event) {
     return {
       statusCode: 500,
       headers: { 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ error: err.message })
+      body: JSON.stringify({ error: err.message, stack: err.stack })
     };
   }
 };
