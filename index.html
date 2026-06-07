@@ -295,11 +295,8 @@ body {
         </div>
         <div class="api-row">
           <div class="control-group">
-            <label>模型</label>
-            <select id="imgModel">
-              <option value="dall-e-3">GPT Image-1 / DALL-E 3</option>
-              <option value="dall-e-2">GPT Image-2 / DALL-E 2</option>
-            </select>
+            <label>模型名称</label>
+            <input type="text" id="imgModel" value="image1" placeholder="image1 / image2" style="width:180px">
           </div>
           <div class="control-group">
             <label>尺寸</label>
@@ -1024,7 +1021,13 @@ btnGenImg.addEventListener('click', async () => {
     genImgPreview.classList.remove('hidden');
     imgLog('✅ 图片生成成功！', 'success');
   } catch (err) {
-    imgLog(`❌ 生成失败: ${err.message}`, 'error');
+    const msg = err.message || String(err);
+    if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+      imgLog('❌ 网络请求被拦截 - 跨域(CORS)问题', 'error');
+      imgLog('💡 你的中转站需要设置响应头: Access-Control-Allow-Origin: *', 'info');
+    } else {
+      imgLog(`❌ 生成失败: ${msg}`, 'error');
+    }
   } finally {
     btnGenImg.disabled = false;
     btnGenImg.textContent = '🖼 生成图片';
