@@ -325,8 +325,9 @@ body {
         </div>
         <div class="api-row" style="margin-top:8px">
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);cursor:pointer">
-            <input type="checkbox" id="useCorsProxy" checked> 使用 CORS 代理（解决跨域问题）
+            <input type="checkbox" id="useCorsProxy" checked> 使用 CORS 代理
           </label>
+          <input type="text" id="proxyUrl" placeholder="代理地址" style="width:300px;margin-left:12px;font-size:12px" value="/api/proxy">
         </div>
       </div>
       <div class="log-area hidden" id="imgGenLog"></div>
@@ -992,25 +993,33 @@ btnGenImg.addEventListener('click', async () => {
   btnGenImg.textContent = '⏳ 生成中...';
 
   const useProxy = $('#useCorsProxy').checked;
+  const proxyUrl = $('#proxyUrl').value.trim();
   const apiUrl = `${baseUrl}/images/generations`;
-  const fetchUrl = useProxy ? `https://corsproxy.io/?${encodeURIComponent(apiUrl)}` : apiUrl;
+  const reqBody = { model, prompt, n: 1, size, quality, response_format: 'b64_json' };
 
   try {
-    const resp = await fetch(fetchUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model,
-        prompt,
-        n: 1,
-        size,
-        quality,
-        response_format: 'b64_json'
-      })
-    });
+    let resp;
+    if (useProxy && proxyUrl) {
+      resp = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: apiUrl,
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}` },
+          body: reqBody
+        })
+      });
+    } else {
+      resp = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(reqBody)
+      });
+    }
 
     if (!resp.ok) {
       const err = await resp.text();
