@@ -314,6 +314,11 @@ body {
           </div>
           <button class="btn btn-primary btn-sm" id="btnGenImg">🖼 生成图片</button>
         </div>
+        <div class="api-row" style="margin-top:8px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);cursor:pointer">
+            <input type="checkbox" id="useCorsProxy" checked> 使用 CORS 代理（解决跨域问题）
+          </label>
+        </div>
       </div>
       <div class="log-area hidden" id="imgGenLog"></div>
       <div class="gen-img-preview hidden" id="genImgPreview">
@@ -976,8 +981,12 @@ btnGenImg.addEventListener('click', async () => {
   btnGenImg.disabled = true;
   btnGenImg.textContent = '⏳ 生成中...';
 
+  const useProxy = $('#useCorsProxy').checked;
+  const apiUrl = `${baseUrl}/images/generations`;
+  const fetchUrl = useProxy ? `https://corsproxy.io/?${encodeURIComponent(apiUrl)}` : apiUrl;
+
   try {
-    const resp = await fetch(`${baseUrl}/images/generations`, {
+    const resp = await fetch(fetchUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
